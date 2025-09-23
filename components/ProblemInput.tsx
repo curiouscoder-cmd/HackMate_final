@@ -12,7 +12,7 @@ export default function ProblemInput() {
 
     setIsSubmitting(true)
     try {
-      const response = await fetch('/api/server/tasks/create', {
+      const response = await fetch('/api/tasks', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
+import { retryTaskAction } from '@/lib/actions/task-actions'
 
 interface Task {
   id: string
@@ -20,6 +21,17 @@ interface TaskCardProps {
 
 export default function TaskCard({ task }: TaskCardProps) {
   const [showLogs, setShowLogs] = useState(false)
+  const [isPending, startTransition] = useTransition()
+
+  const handleRetry = () => {
+    startTransition(async () => {
+      try {
+        await retryTaskAction(task.id)
+      } catch (error) {
+        console.error('Failed to retry task:', error)
+      }
+    })
+  }
 
   const getAgentIcon = (agent: string) => {
     switch (agent) {
@@ -70,14 +82,25 @@ export default function TaskCard({ task }: TaskCardProps) {
 
       <div className="flex items-center justify-between text-xs text-gray-500">
         <span>{formatTime(task.updatedAt)}</span>
-        {task.logs.length > 0 && (
-          <button
-            onClick={() => setShowLogs(!showLogs)}
-            className="text-primary-600 hover:text-primary-700 font-medium"
-          >
-            {showLogs ? 'Hide' : 'Show'} Logs ({task.logs.length})
-          </button>
-        )}
+        <div className="flex items-center space-x-2">
+          {task.status === 'failed' && (
+            <button
+              onClick={handleRetry}
+              disabled={isPending}
+              className="text-red-600 hover:text-red-700 font-medium disabled:opacity-50"
+            >
+              {isPending ? '🔄' : '🔁'} Retry
+            </button>
+          )}
+          {task.logs.length > 0 && (
+            <button
+              onClick={() => setShowLogs(!showLogs)}
+              className="text-blue-600 hover:text-blue-700 font-medium"
+            >
+              {showLogs ? 'Hide' : 'Show'} Logs ({task.logs.length})
+            </button>
+          )}
+        </div>
       </div>
 
       {showLogs && task.logs.length > 0 && (
