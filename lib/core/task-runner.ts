@@ -69,7 +69,10 @@ export class TaskRunner {
 
         // Store in memory
         if (this.config.enableMemory) {
-          await this.memory.storeTask(task);
+          await this.memory.addTaskContext(task.id, `Task created: ${task.title}`, { 
+            status: task.status, 
+            agent: task.agent 
+          });
         }
 
         // Notify PM
@@ -143,7 +146,11 @@ export class TaskRunner {
 
       // Store updated task in memory
       if (this.config.enableMemory) {
-        await this.memory.storeTask(task);
+        await this.memory.addTaskContext(task.id, `Task completed: ${task.title}`, { 
+          status: task.status, 
+          agent: task.agent,
+          result: result 
+        });
       }
 
       await sendTaskUpdate(task, 'completed', {
@@ -264,7 +271,7 @@ export class TaskRunner {
       return [];
     }
     
-    return await this.memory.searchTasks(query, limit);
+    return await this.memory.retrieve(query, limit);
   }
 
   getAgentStatus() {
@@ -281,7 +288,7 @@ export class TaskRunner {
         slackToken: this.config.enableSlack ? process.env.SLACK_BOT_TOKEN : undefined,
         channelId: this.config.enableSlack ? process.env.SLACK_CHANNEL_ID : undefined
       }),
-      memory: this.memory.getStatus(),
+      memory: { status: 'ready', type: 'in-memory' },
       taskCount: this.tasks.size,
       config: this.config
     };
@@ -290,7 +297,7 @@ export class TaskRunner {
   // Cleanup method
   async shutdown(): Promise<void> {
     if (this.config.enableMemory) {
-      await this.memory.shutdown();
+      await this.memory.clear();
     }
     console.log('TaskRunner shutdown complete');
   }

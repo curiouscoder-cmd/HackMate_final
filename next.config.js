@@ -1,5 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Suppress workspace root warning
+  outputFileTracingRoot: __dirname,
+  
+  // Optimize for production
+  experimental: {
+    optimizePackageImports: ['@google/generative-ai', 'openai', '@anthropic-ai/sdk'],
+  },
+  
+  // Handle external packages
+  transpilePackages: [],
+  
   // App Router is now stable in Next.js 15+
   typescript: {
     // Enable strict mode for better type checking

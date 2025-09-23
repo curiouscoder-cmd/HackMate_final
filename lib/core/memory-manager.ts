@@ -1,5 +1,3 @@
-import { Task } from '../agents/planner-agent';
-
 export interface MemoryEntry {
   id: string;
   type: 'task' | 'decision' | 'code' | 'error';
@@ -10,250 +8,160 @@ export interface MemoryEntry {
 }
 
 export class MemoryManager {
-  private memories: Map<string, MemoryEntry> = new Map();
-  private chromaClient: any = null;
-  private collectionName = 'hackmate_memory';
+  private inMemoryStore: MemoryEntry[] = [];
+  private maxEntries = 1000; // Limit memory usage
 
   constructor() {
-    this.initializeChroma();
-  }
-
-  private async initializeChroma() {
-    try {
-      // Only initialize ChromaDB if URL is provided
-      const chromaUrl = process.env.CHROMA_URL;
-      if (!chromaUrl) {
-        console.log('ChromaDB not configured, using in-memory storage');
-        return;
-      }
-
-      // Dynamic import to avoid issues if chromadb is not installed
-      const { ChromaApi, Configuration } = await import('chromadb');
-      
-      this.chromaClient = new ChromaApi(new Configuration({
-        basePath: chromaUrl
-      }));
-
-      console.log('✅ ChromaDB connected successfully');
-    } catch (error) {
-      console.warn('ChromaDB not available, using fallback memory storage:', error.message);
-      this.chromaClient = null;
-    }
+    console.log('📝 Memory Manager initialized (in-memory mode)');
   }
 
   async initialize(): Promise<void> {
-    if (this.chromaClient) {
-      try {
-        // Create or get collection
-        await this.chromaClient.createCollection({
-          name: this.collectionName,
-          metadata: { description: 'HackMate AI memory storage' }
-        });
-      } catch (error) {
-        // Collection might already exist
-        console.log('ChromaDB collection already exists or error:', error.message);
-      }
-    }
+    // No initialization needed for in-memory storage
+    console.log('✅ Memory Manager ready');
   }
 
-  async storeTask(task: Task): Promise<void> {
+  async store(entry: Omit<MemoryEntry, 'id' | 'timestamp'>): Promise<string> {
+    const id = `mem_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const memoryEntry: MemoryEntry = {
-      id: `task_${task.id}`,
-      type: 'task',
-      content: `${task.title}\n${task.description}\nAgent: ${task.agent}\nStatus: ${task.status}`,
-      metadata: {
-        taskId: task.id,
-        agent: task.agent,
-        status: task.status,
-        createdAt: task.createdAt,
-        ...task.metadata
-      },
-      timestamp: new Date().toISOString()
+      id,
+      timestamp: new Date().toISOString(),
+      ...entry
     };
 
-    // Store in local memory
-    this.memories.set(memoryEntry.id, memoryEntry);
+    this.inMemoryStore.push(memoryEntry);
 
-    // Store in ChromaDB if available
-    if (this.chromaClient) {
-      try {
-        await this.chromaClient.add({
-          collectionName: this.collectionName,
-          ids: [memoryEntry.id],
-          documents: [memoryEntry.content],
-          metadatas: [memoryEntry.metadata]
-        });
-      } catch (error) {
-        console.warn('Failed to store in ChromaDB:', error.message);
-      }
+    // Keep only the most recent entries
+    if (this.inMemoryStore.length > this.maxEntries) {
+      this.inMemoryStore = this.inMemoryStore.slice(-this.maxEntries);
     }
+
+    return id;
   }
 
-  async storeDecision(decision: string, context: any): Promise<void> {
-    const memoryEntry: MemoryEntry = {
-      id: `decision_${Date.now()}`,
-      type: 'decision',
-      content: decision,
-      metadata: {
-        context,
-        importance: 'high'
-      },
-      timestamp: new Date().toISOString()
+  async retrieve(query: string, limit: number = 5): Promise<MemoryEntry[]> {
+    // Simple text-based search since we don't have vector embeddings
+    const queryLower = query.toLowerCase();
+    
+    const matches = this.inMemoryStore.filter(entry => 
+      entry.content.toLowerCase().includes(queryLower) ||
+      entry.metadata?.tags?.some((tag: string) => tag.toLowerCase().includes(queryLower))
+    );
+
+    // Sort by timestamp (most recent first)
+    matches.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    return matches.slice(0, limit);
+  }
+
+  async update(id: string, updates: Partial<MemoryEntry>): Promise<boolean> {
+    const index = this.inMemoryStore.findIndex(entry => entry.id === id);
+    if (index === -1) return false;
+
+    this.inMemoryStore[index] = {
+      ...this.inMemoryStore[index],
+      ...updates,
+      id, // Ensure ID doesn't change
+      timestamp: new Date().toISOString() // Update timestamp
     };
 
-    this.memories.set(memoryEntry.id, memoryEntry);
-
-    if (this.chromaClient) {
-      try {
-        await this.chromaClient.add({
-          collectionName: this.collectionName,
-          ids: [memoryEntry.id],
-          documents: [memoryEntry.content],
-          metadatas: [memoryEntry.metadata]
-        });
-      } catch (error) {
-        console.warn('Failed to store decision in ChromaDB:', error.message);
-      }
-    }
+    return true;
   }
 
-  async storeCode(filename: string, code: string, description: string): Promise<void> {
-    const memoryEntry: MemoryEntry = {
-      id: `code_${filename}_${Date.now()}`,
-      type: 'code',
-      content: `File: ${filename}\nDescription: ${description}\nCode:\n${code}`,
-      metadata: {
-        filename,
-        description,
-        language: this.detectLanguage(filename)
-      },
-      timestamp: new Date().toISOString()
-    };
+  async delete(id: string): Promise<boolean> {
+    const index = this.inMemoryStore.findIndex(entry => entry.id === id);
+    if (index === -1) return false;
 
-    this.memories.set(memoryEntry.id, memoryEntry);
-
-    if (this.chromaClient) {
-      try {
-        await this.chromaClient.add({
-          collectionName: this.collectionName,
-          ids: [memoryEntry.id],
-          documents: [memoryEntry.content],
-          metadatas: [memoryEntry.metadata]
-        });
-      } catch (error) {
-        console.warn('Failed to store code in ChromaDB:', error.message);
-      }
-    }
+    this.inMemoryStore.splice(index, 1);
+    return true;
   }
 
-  async searchTasks(query: string, limit: number = 10): Promise<any[]> {
-    if (this.chromaClient) {
-      try {
-        const results = await this.chromaClient.query({
-          collectionName: this.collectionName,
-          queryTexts: [query],
-          nResults: limit,
-          where: { type: 'task' }
-        });
+  async getByType(type: MemoryEntry['type'], limit: number = 10): Promise<MemoryEntry[]> {
+    const matches = this.inMemoryStore.filter(entry => entry.type === type);
+    
+    // Sort by timestamp (most recent first)
+    matches.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-        return results.documents[0]?.map((doc: string, index: number) => ({
-          content: doc,
-          metadata: results.metadatas[0][index],
-          distance: results.distances[0][index]
-        })) || [];
-      } catch (error) {
-        console.warn('ChromaDB search failed, using fallback:', error.message);
-      }
-    }
-
-    // Fallback: simple text search in local memory
-    const results = Array.from(this.memories.values())
-      .filter(entry => 
-        entry.type === 'task' && 
-        entry.content.toLowerCase().includes(query.toLowerCase())
-      )
-      .slice(0, limit)
-      .map(entry => ({
-        content: entry.content,
-        metadata: entry.metadata,
-        distance: 0 // No distance calculation for simple search
-      }));
-
-    return results;
+    return matches.slice(0, limit);
   }
 
-  async searchByType(type: MemoryEntry['type'], limit: number = 10): Promise<MemoryEntry[]> {
-    if (this.chromaClient) {
-      try {
-        const results = await this.chromaClient.query({
-          collectionName: this.collectionName,
-          queryTexts: [''],
-          nResults: limit,
-          where: { type }
-        });
+  async getRecent(limit: number = 10): Promise<MemoryEntry[]> {
+    const sorted = [...this.inMemoryStore].sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
 
-        return results.documents[0]?.map((doc: string, index: number) => ({
-          id: results.ids[0][index],
-          type,
-          content: doc,
-          metadata: results.metadatas[0][index],
-          timestamp: results.metadatas[0][index].timestamp || new Date().toISOString()
-        })) || [];
-      } catch (error) {
-        console.warn('ChromaDB type search failed, using fallback:', error.message);
-      }
-    }
-
-    // Fallback: filter local memory
-    return Array.from(this.memories.values())
-      .filter(entry => entry.type === type)
-      .slice(0, limit);
+    return sorted.slice(0, limit);
   }
 
-  async getRecentMemories(limit: number = 20): Promise<MemoryEntry[]> {
-    const localMemories = Array.from(this.memories.values())
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-      .slice(0, limit);
-
-    return localMemories;
+  async clear(): Promise<void> {
+    this.inMemoryStore = [];
+    console.log('🧹 Memory cleared');
   }
 
-  private detectLanguage(filename: string): string {
-    const ext = filename.split('.').pop()?.toLowerCase();
-    const languageMap: { [key: string]: string } = {
-      'js': 'javascript',
-      'ts': 'typescript',
-      'jsx': 'javascript',
-      'tsx': 'typescript',
-      'py': 'python',
-      'java': 'java',
-      'cpp': 'cpp',
-      'c': 'c',
-      'go': 'go',
-      'rs': 'rust',
-      'php': 'php',
-      'rb': 'ruby',
-      'swift': 'swift',
-      'kt': 'kotlin'
-    };
+  async getStats(): Promise<{
+    totalEntries: number;
+    entriesByType: Record<string, number>;
+    oldestEntry?: string;
+    newestEntry?: string;
+  }> {
+    const entriesByType: Record<string, number> = {};
+    
+    this.inMemoryStore.forEach(entry => {
+      entriesByType[entry.type] = (entriesByType[entry.type] || 0) + 1;
+    });
 
-    return languageMap[ext || ''] || 'unknown';
-  }
+    const timestamps = this.inMemoryStore.map(entry => entry.timestamp).sort();
 
-  getStatus() {
     return {
-      name: 'Memory Manager',
-      status: 'ready',
-      capabilities: ['task_storage', 'semantic_search', 'decision_tracking'],
-      chromaEnabled: !!this.chromaClient,
-      localMemories: this.memories.size,
-      types: ['task', 'decision', 'code', 'error']
+      totalEntries: this.inMemoryStore.length,
+      entriesByType,
+      oldestEntry: timestamps[0],
+      newestEntry: timestamps[timestamps.length - 1]
     };
   }
 
-  async shutdown(): Promise<void> {
-    // Clean up connections if needed
-    this.chromaClient = null;
-    console.log('Memory Manager shutdown complete');
+  // Helper method to add context about a task
+  async addTaskContext(taskId: string, context: string, metadata: any = {}): Promise<string> {
+    return this.store({
+      type: 'task',
+      content: context,
+      metadata: {
+        taskId,
+        ...metadata
+      }
+    });
+  }
+
+  // Helper method to add decision context
+  async addDecision(decision: string, reasoning: string, metadata: any = {}): Promise<string> {
+    return this.store({
+      type: 'decision',
+      content: `Decision: ${decision}\nReasoning: ${reasoning}`,
+      metadata
+    });
+  }
+
+  // Helper method to add code context
+  async addCodeContext(code: string, description: string, metadata: any = {}): Promise<string> {
+    return this.store({
+      type: 'code',
+      content: `${description}\n\n\`\`\`\n${code}\n\`\`\``,
+      metadata
+    });
+  }
+
+  // Helper method to add error context
+  async addError(error: string, context: string, metadata: any = {}): Promise<string> {
+    return this.store({
+      type: 'error',
+      content: `Error: ${error}\nContext: ${context}`,
+      metadata
+    });
+  }
+
+  // Get context for a specific task
+  async getTaskContext(taskId: string): Promise<MemoryEntry[]> {
+    return this.inMemoryStore.filter(entry => 
+      entry.metadata?.taskId === taskId
+    ).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }
 }

@@ -20,12 +20,7 @@
     "@anthropic-ai/sdk": "^0.9.0",
     "@octokit/rest": "^20.0.2",
     "@slack/web-api": "^6.10.0",
-    "chromadb": "^1.7.3",
-    "uuid": "^9.0.1",
-    "axios": "^1.6.0",
-    "ws": "^8.14.2",
-    "socket.io": "^4.7.4",
-    "socket.io-client": "^4.7.4"
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

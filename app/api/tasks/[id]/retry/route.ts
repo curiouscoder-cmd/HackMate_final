@@ -19,11 +19,12 @@ async function getTaskRunner(): Promise<TaskRunner> {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: taskId } = await params;
     const runner = await getTaskRunner();
-    await runner.retryTask(params.id);
+    await runner.retryTask(taskId);
 
     return NextResponse.json({
       success: true,
@@ -32,7 +33,7 @@ export async function POST(
   } catch (error) {
     console.error('Error retrying task:', error);
     return NextResponse.json(
-      { error: 'Failed to retry task', message: error.message },
+      { error: 'Failed to retry task', message: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

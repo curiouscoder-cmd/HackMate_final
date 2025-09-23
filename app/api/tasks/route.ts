@@ -30,7 +30,7 @@ export async function GET() {
   } catch (error) {
     console.error('Error fetching tasks:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch tasks', message: error.message },
+      { error: 'Failed to fetch tasks', message: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error creating task:', error);
     return NextResponse.json(
-      { error: 'Failed to create task', message: error.message },
+      { error: 'Failed to create task', message: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

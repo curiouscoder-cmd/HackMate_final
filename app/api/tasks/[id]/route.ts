@@ -19,11 +19,12 @@ async function getTaskRunner(): Promise<TaskRunner> {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: taskId } = await params;
     const runner = await getTaskRunner();
-    const task = await runner.getTask(params.id);
+    const task = await runner.getTask(taskId);
 
     if (!task) {
       return NextResponse.json(
@@ -39,7 +40,7 @@ export async function GET(
   } catch (error) {
     console.error('Error fetching task:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch task', message: error.message },
+      { error: 'Failed to fetch task', message: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
