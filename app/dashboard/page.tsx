@@ -12,8 +12,8 @@ export const metadata = {
 
 export default function DashboardPage() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
-      <div className="container mx-auto px-4 py-8">
+    <main className="min-h-screen w-full bg-gradient-to-br from-gray-50 via-white to-gray-50">
+      <div className="w-full px-6 py-8">
         {/* Header with animation */}
         <div className="fade-in">
           <Header />
