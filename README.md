@@ -88,12 +88,20 @@ NODE_ENV=development
 2. Add bot to your channel
 3. Set `SLACK_BOT_TOKEN` and `SLACK_CHANNEL_ID` in `.env`
 
-#### ChromaDB (Optional)
-```bash
-# Install and run ChromaDB
-pip install chromadb
-chroma run --host localhost --port 8000
-```
+#### Vector Memory with Pinecone (Recommended)
+1. Create a Pinecone account at https://app.pinecone.io/
+2. Create a new index:
+   - Name: `hackmate-memory` (or custom name)
+   - Dimensions: `768` (for Gemini embeddings)
+   - Metric: `cosine`
+   - Cloud: `AWS` (recommended)
+3. Set `PINECONE_API_KEY` and `PINECONE_INDEX_NAME` in `.env`
+
+The system will automatically:
+- Create the index if it doesn't exist
+- Generate embeddings using Gemini
+- Store and retrieve context semantically
+- Fall back to in-memory storage if Pinecone is not configured
 
 ## 🎯 Usage
 
