@@ -61,53 +61,50 @@ export default function TaskCard({ task }: TaskCardProps) {
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow duration-200">
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center space-x-2">
-          <span className="text-lg">{getAgentIcon(task.agent)}</span>
-          <span className="text-xs text-gray-500 capitalize">{task.agent}</span>
+    <div className="task-card">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2 flex-1 min-w-0">
+          <span className="text-sm flex-shrink-0">{getAgentIcon(task.agent)}</span>
+          <div className="flex-1 min-w-0">
+            <h4 className="font-medium text-gray-900 text-sm truncate">
+              {task.title}
+            </h4>
+            <p className="text-xs text-gray-600 truncate">
+              {task.description}
+            </p>
+          </div>
         </div>
-        <span className={`status-badge ${getStatusColor(task.status)}`}>
-          {task.status.replace('_', ' ')}
-        </span>
-      </div>
-
-      <h4 className="font-medium text-gray-900 mb-2 line-clamp-2">
-        {task.title}
-      </h4>
-
-      <p className="text-sm text-gray-600 mb-3 line-clamp-3">
-        {task.description}
-      </p>
-
-      <div className="flex items-center justify-between text-xs text-gray-500">
-        <span>{formatTime(task.updatedAt)}</span>
-        <div className="flex items-center space-x-2">
+        
+        <div className="flex items-center space-x-2 flex-shrink-0 ml-3">
+          <span className="text-xs text-gray-500">{formatTime(task.updatedAt)}</span>
           {task.status === 'failed' && (
             <button
               onClick={handleRetry}
               disabled={isPending}
-              className="text-red-600 hover:text-red-700 font-medium disabled:opacity-50"
+              className="text-red-600 hover:text-red-700 font-medium disabled:opacity-50 text-xs"
             >
-              {isPending ? '🔄' : '🔁'} Retry
+              {isPending ? '🔄' : '🔁'}
             </button>
           )}
           {task.logs.length > 0 && (
             <button
               onClick={() => setShowLogs(!showLogs)}
-              className="text-blue-600 hover:text-blue-700 font-medium"
+              className="text-blue-600 hover:text-blue-700 font-medium text-xs"
             >
-              {showLogs ? 'Hide' : 'Show'} Logs ({task.logs.length})
+              📋 {task.logs.length}
             </button>
           )}
+          <span className={`status-badge ${getStatusColor(task.status)} text-xs px-2 py-0.5 flex-shrink-0`}>
+            {task.status.replace('_', ' ')}
+          </span>
         </div>
       </div>
 
       {showLogs && task.logs.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-gray-100">
-          <div className="bg-gray-50 rounded p-2 max-h-32 overflow-y-auto">
+        <div className="mt-2 pt-2 border-t border-gray-100">
+          <div className="bg-gray-50 rounded p-2 max-h-24 overflow-y-auto">
             {task.logs.map((log, index) => (
-              <div key={index} className="text-xs text-gray-700 mb-1 font-mono">
+              <div key={index} className="text-xs text-gray-700 mb-0.5 font-mono leading-tight">
                 {log}
               </div>
             ))}
@@ -116,7 +113,7 @@ export default function TaskCard({ task }: TaskCardProps) {
       )}
 
       {task.metadata?.prUrl && (
-        <div className="mt-3 pt-3 border-t border-gray-100">
+        <div className="mt-2 pt-2 border-t border-gray-100">
           <a
             href={task.metadata.prUrl}
             target="_blank"

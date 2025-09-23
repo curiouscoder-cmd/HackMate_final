@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { getTasksAction } from '@/lib/actions/task-actions';
-import TaskCard from './TaskCard';
+import CollapsibleTaskSection from './CollapsibleTaskSection';
 import { Task } from '@/lib/agents/planner-agent';
 
 // Server component for SSR task board
@@ -27,10 +27,10 @@ async function TaskBoardContent() {
   };
 
   const statusConfig = {
-    queued: { title: '📋 Queued', color: 'bg-gray-50 border-gray-200' },
-    in_progress: { title: '⚡ In Progress', color: 'bg-blue-50 border-blue-200' },
-    done: { title: '✅ Done', color: 'bg-green-50 border-green-200' },
-    failed: { title: '❌ Failed', color: 'bg-red-50 border-red-200' },
+    queued: { title: '📋 Queued', color: 'task-section task-section-queued' },
+    in_progress: { title: '⚡ In Progress', color: 'task-section task-section-in-progress' },
+    done: { title: '✅ Done', color: 'task-section task-section-done' },
+    failed: { title: '❌ Failed', color: 'task-section task-section-failed' },
   };
 
   return (
@@ -44,29 +44,16 @@ async function TaskBoardContent() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="space-y-6">
         {Object.entries(statusConfig).map(([status, config]) => (
-          <div key={status} className={`rounded-lg border-2 ${config.color} p-4`}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium text-gray-900">{config.title}</h3>
-              <span className="text-sm text-gray-500">
-                {tasksByStatus[status as keyof typeof tasksByStatus].length}
-              </span>
-            </div>
-            
-            <div className="space-y-3">
-              {tasksByStatus[status as keyof typeof tasksByStatus].map(task => (
-                <TaskCard key={task.id} task={task} />
-              ))}
-              
-              {tasksByStatus[status as keyof typeof tasksByStatus].length === 0 && (
-                <div className="text-center py-8 text-gray-400">
-                  <div className="text-2xl mb-2">📭</div>
-                  <div className="text-sm">No tasks</div>
-                </div>
-              )}
-            </div>
-          </div>
+          <CollapsibleTaskSection
+            key={status}
+            status={status}
+            title={config.title}
+            color={config.color}
+            tasks={tasksByStatus[status as keyof typeof tasksByStatus]}
+            count={tasksByStatus[status as keyof typeof tasksByStatus].length}
+          />
         ))}
       </div>
     </div>
@@ -82,16 +69,19 @@ function TaskBoardLoading() {
         <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="space-y-6">
         {[...Array(4)].map((_, i) => (
           <div key={i} className="rounded-lg border-2 bg-gray-50 border-gray-200 p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="h-5 bg-gray-200 rounded w-20 animate-pulse"></div>
+            <div className="flex items-center justify-between mb-4 p-2 -m-2">
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-gray-200 rounded animate-pulse"></div>
+                <div className="h-5 bg-gray-200 rounded w-20 animate-pulse"></div>
+              </div>
               <div className="h-4 bg-gray-200 rounded w-8 animate-pulse"></div>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {[...Array(2)].map((_, j) => (
-                <div key={j} className="h-24 bg-gray-100 rounded animate-pulse"></div>
+                <div key={j} className="h-16 bg-gray-100 rounded animate-pulse"></div>
               ))}
             </div>
           </div>
