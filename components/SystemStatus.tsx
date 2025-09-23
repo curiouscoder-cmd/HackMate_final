@@ -1,0 +1,180 @@
+import { Suspense } from 'react';
+import { getAgentStatusAction } from '@/lib/actions/task-actions';
+
+async function SystemStatusContent() {
+  const result = await getAgentStatusAction();
+  
+  if (!result.success || !result.agents) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="flex items-center">
+          <span className="text-red-500 text-lg mr-2">❌</span>
+          <span className="text-red-700 font-medium">System Status Unavailable</span>
+        </div>
+        <p className="text-red-600 text-sm mt-1">{result.error}</p>
+      </div>
+    );
+  }
+
+  const agents = result.agents;
+  const totalTasks = agents.taskCount || 0;
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+        <span className="mr-2">🔧</span>
+        System Status
+      </h3>
+
+      {/* Overall System Health */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="text-center">
+          <div className="text-2xl font-bold text-blue-600">{totalTasks}</div>
+          <div className="text-sm text-gray-500">Total Tasks</div>
+        </div>
+        <div className="text-center">
+          <div className="text-2xl font-bold text-green-600">
+            {Object.keys(agents).filter(key => key !== 'taskCount' && key !== 'config').length}
+          </div>
+          <div className="text-sm text-gray-500">Active Agents</div>
+        </div>
+        <div className="text-center">
+          <div className="text-2xl font-bold text-purple-600">
+            {agents.config?.enableAI ? '✅' : '❌'}
+          </div>
+          <div className="text-sm text-gray-500">AI Enabled</div>
+        </div>
+        <div className="text-center">
+          <div className="text-2xl font-bold text-orange-600">
+            {agents.memory?.status === 'ready' ? '✅' : '❌'}
+          </div>
+          <div className="text-sm text-gray-500">Memory System</div>
+        </div>
+      </div>
+
+      {/* Agent Status Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {Object.entries(agents).map(([key, agent]) => {
+          if (key === 'taskCount' || key === 'config' || !agent || typeof agent !== 'object') return null;
+          
+          const agentData = agent as any;
+          const isHealthy = agentData.status === 'ready';
+          
+          return (
+            <div key={key} className={`p-4 rounded-lg border-2 ${
+              isHealthy ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+            }`}>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-medium text-gray-900 capitalize">{key}</h4>
+                <span className={`text-lg ${isHealthy ? 'text-green-500' : 'text-red-500'}`}>
+                  {isHealthy ? '✅' : '❌'}
+                </span>
+              </div>
+              
+              <div className="text-sm text-gray-600 mb-2">
+                {agentData.name || `${key} Agent`}
+              </div>
+              
+              {agentData.capabilities && (
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {agentData.capabilities.slice(0, 2).map((capability: string, index: number) => (
+                    <span key={index} className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
+                      {capability.replace('_', ' ')}
+                    </span>
+                  ))}
+                  {agentData.capabilities.length > 2 && (
+                    <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                      +{agentData.capabilities.length - 2}
+                    </span>
+                  )}
+                </div>
+              )}
+              
+              <div className="text-xs text-gray-500 space-y-1">
+                {agentData.aiEnabled !== undefined && (
+                  <div>AI: {agentData.aiEnabled ? '✅' : '❌'}</div>
+                )}
+                {agentData.githubEnabled !== undefined && (
+                  <div>GitHub: {agentData.githubEnabled ? '✅' : '❌'}</div>
+                )}
+                {agentData.slackEnabled !== undefined && (
+                  <div>Slack: {agentData.slackEnabled ? '✅' : '❌'}</div>
+                )}
+                {agentData.chromaEnabled !== undefined && (
+                  <div>ChromaDB: {agentData.chromaEnabled ? '✅' : '❌'}</div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Configuration Status */}
+      <div className="mt-6 pt-4 border-t border-gray-200">
+        <h4 className="font-medium text-gray-900 mb-3">Configuration</h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-600">AI Features</span>
+            <span className={agents.config?.enableAI ? 'text-green-600' : 'text-red-600'}>
+              {agents.config?.enableAI ? 'Enabled' : 'Disabled'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-600">GitHub Integration</span>
+            <span className={agents.config?.enableGitHub ? 'text-green-600' : 'text-red-600'}>
+              {agents.config?.enableGitHub ? 'Enabled' : 'Disabled'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-600">Slack Notifications</span>
+            <span className={agents.config?.enableSlack ? 'text-green-600' : 'text-red-600'}>
+              {agents.config?.enableSlack ? 'Enabled' : 'Disabled'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-600">Memory System</span>
+            <span className={agents.config?.enableMemory ? 'text-green-600' : 'text-red-600'}>
+              {agents.config?.enableMemory ? 'Enabled' : 'Disabled'}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SystemStatusLoading() {
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="flex items-center mb-4">
+        <div className="w-6 h-6 bg-gray-200 rounded mr-2 animate-pulse"></div>
+        <div className="h-6 bg-gray-200 rounded w-32 animate-pulse"></div>
+      </div>
+      
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="text-center">
+            <div className="h-8 bg-gray-200 rounded w-12 mx-auto mb-2 animate-pulse"></div>
+            <div className="h-4 bg-gray-200 rounded w-16 mx-auto animate-pulse"></div>
+          </div>
+        ))}
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="p-4 rounded-lg border-2 border-gray-200 bg-gray-50">
+            <div className="h-20 bg-gray-200 rounded animate-pulse"></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function SystemStatus() {
+  return (
+    <Suspense fallback={<SystemStatusLoading />}>
+      <SystemStatusContent />
+    </Suspense>
+  );
+}

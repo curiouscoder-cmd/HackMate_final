@@ -44,17 +44,13 @@ cp .env.example .env
 
 3. **Start the development servers:**
 ```bash
-# Start both frontend and backend
-npm run dev:full
-
-# Or start separately:
-npm run server  # Backend on port 3001
-npm run dev     # Frontend on port 3000
+# Start the integrated Next.js application
+npm run dev     # Runs on port 3000 with integrated backend
 ```
 
 4. **Open your browser:**
 - Dashboard: http://localhost:3000
-- API: http://localhost:3001
+- API endpoints available at: http://localhost:3000/api/*
 
 ## 🔧 Configuration
 
@@ -142,17 +138,18 @@ Problem: "Create a user profile component with avatar and bio"
 
 ## 🏗 Architecture
 
-### Frontend (Next.js 14)
-- **App Router**: Modern Next.js with SSR
+### Frontend (Next.js 15+)
+- **App Router**: Modern Next.js with SSR and Server Actions
+- **Server Components**: SSR-first architecture with client interactivity
 - **Tailwind CSS**: Utility-first styling
 - **TypeScript**: Type-safe development
-- **Real-time Updates**: Polling-based task updates
+- **Real-time Updates**: Server Actions with automatic revalidation
 
-### Backend (Node.js + Express)
-- **Task Runner**: Orchestrates agent execution
-- **Memory Manager**: Handles persistent storage
-- **Agent System**: Modular AI agents
-- **REST API**: Task and agent management
+### Backend (Integrated Next.js API Routes)
+- **Task Runner**: Functional orchestration of agent execution
+- **Memory Manager**: Handles persistent storage with ChromaDB
+- **Agent System**: Functional AI agents (no classes)
+- **Server Actions**: Type-safe server functions with automatic caching
 
 ### Agents
 - **Planner Agent**: Problem decomposition with Gemini

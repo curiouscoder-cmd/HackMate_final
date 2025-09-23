@@ -21,7 +21,7 @@ export default function TaskBoard() {
 
   const fetchTasks = async () => {
     try {
-      const response = await fetch('/api/server/tasks')
+      const response = await fetch('/api/tasks')
       if (response.ok) {
         const data = await response.json()
         setTasks(data.tasks || [])
