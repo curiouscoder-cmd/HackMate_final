@@ -30,14 +30,40 @@
   }
   
   .status-in-progress {
-    @apply bg-primary-100 text-primary-800;
+    @apply bg-blue-100 text-blue-800;
   }
   
   .status-done {
-    @apply bg-success-100 text-success-800;
+    @apply bg-green-100 text-green-800;
   }
   
   .status-failed {
-    @apply bg-error-100 text-error-800;
+    @apply bg-red-100 text-red-800;
+  }
+
+  /* Task board section styling */
+  .task-section {
+    @apply rounded-xl border-2 p-5 shadow-sm hover:shadow-md transition-shadow duration-200;
+  }
+  
+  .task-section-queued {
+    @apply bg-gradient-to-br from-gray-50 to-gray-100 border-gray-300;
+  }
+  
+  .task-section-in-progress {
+    @apply bg-gradient-to-br from-blue-50 to-blue-100 border-blue-300;
+  }
+  
+  .task-section-done {
+    @apply bg-gradient-to-br from-green-50 to-green-100 border-green-300;
+  }
+  
+  .task-section-failed {
+    @apply bg-gradient-to-br from-red-50 to-red-100 border-red-300;
+  }
+
+  /* Compact rectangular task card styling */
+  .task-card {
+    @apply bg-white rounded-lg border border-gray-200 p-3 hover:shadow-lg hover:border-gray-300 transition-all duration-200 transform hover:-translate-y-0.5 min-h-[60px];
   }
 }
