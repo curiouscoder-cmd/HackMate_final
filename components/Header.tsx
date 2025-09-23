@@ -19,48 +19,39 @@ export default function Header({ fullWidth = false }: HeaderProps) {
   })
 
   return (
-    <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+    <header className="bg-white dark:bg-gray-900/90 backdrop-blur border-b border-border">
       <div className={fullWidth ? 'w-full px-4 sm:px-6 lg:px-8' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'}>
-        <div className="flex justify-between items-center py-6">
+        <div className="flex items-center justify-between h-16">
+          {/* Left: Logo */}
           <div className="flex items-center">
             <Link href="/" className="flex items-center hover:opacity-80 transition-opacity">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                🤖 AI Hack Mate
-              </h1>
-              <span className="ml-3 text-sm text-gray-500 dark:text-gray-400">
-                Multi-Agent Development System
-              </span>
+              <span className="text-xl font-bold tracking-tight text-foreground">AI Hack Mate</span>
+              <span className="ml-3 text-xs text-muted-foreground uppercase">Multi-Agent</span>
             </Link>
           </div>
-          
-          {/* Navigation */}
-          <nav className="flex items-center space-x-6">
+
+          {/* Center: Navigation */}
+          <nav className="hidden md:flex items-center space-x-2">
             <Link 
               href="/" 
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                pathname === '/' 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
+              className={`nav-link ${pathname === '/' ? 'nav-link-active' : ''}`}
             >
               Home
             </Link>
             <Link 
               href="/dashboard" 
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                pathname === '/dashboard' 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
+              className={`nav-link ${pathname === '/dashboard' ? 'nav-link-active' : ''}`}
             >
               Dashboard
             </Link>
           </nav>
-          
-          <div className="flex items-center space-x-4">
+
+          {/* Right: Utilities */}
+          <div className="flex items-center space-x-3">
             <ThemeToggle />
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Agents:</span>
+
+            {/* Agent status - compact, show on lg+ */}
+            <div className="hidden lg:flex items-center space-x-2 px-2 py-1 rounded-full bg-muted">
               {Object.entries(agentStatus).map(([agent, status]) => (
                 <div key={agent} className="flex items-center space-x-1">
                   <div className={`w-2 h-2 rounded-full ${
@@ -68,10 +59,11 @@ export default function Header({ fullWidth = false }: HeaderProps) {
                     status === 'working' ? 'bg-yellow-500 animate-pulse' :
                     'bg-gray-300 dark:bg-gray-600'
                   }`} />
-                  <span className="text-xs text-gray-600 dark:text-gray-400 capitalize">{agent}</span>
+                  <span className="text-[10px] text-muted-foreground capitalize">{agent}</span>
                 </div>
               ))}
             </div>
+
           </div>
         </div>
       </div>
