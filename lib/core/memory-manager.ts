@@ -1,6 +1,24 @@
+import { 
+  VectorMemoryEntry, 
+  VectorSearchResult,
+  initializeVectorMemory,
+  storeMemoryEntry,
+  retrieveMemoryEntries,
+  updateMemoryEntry,
+  deleteMemoryEntry,
+  getMemoryEntriesByType,
+  clearMemory,
+  getMemoryStats,
+  addTaskContext as vectorAddTaskContext,
+  addDecision as vectorAddDecision,
+  addCodeContext as vectorAddCodeContext,
+  addError as vectorAddError,
+  getTaskContext as vectorGetTaskContext
+} from './vector-memory-manager';
+
 export interface MemoryEntry {
   id: string;
-  type: 'task' | 'decision' | 'code' | 'error';
+  type: 'task' | 'decision' | 'code' | 'error' | 'context';
   content: string;
   metadata: any;
   timestamp: string;
@@ -12,156 +30,113 @@ export class MemoryManager {
   private maxEntries = 1000; // Limit memory usage
 
   constructor() {
-    console.log('📝 Memory Manager initialized (in-memory mode)');
+    console.log('📝 Memory Manager initialized with vector capabilities');
   }
 
   async initialize(): Promise<void> {
-    // No initialization needed for in-memory storage
+    await initializeVectorMemory();
     console.log('✅ Memory Manager ready');
   }
 
   async store(entry: Omit<MemoryEntry, 'id' | 'timestamp'>): Promise<string> {
-    const id = `mem_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const memoryEntry: MemoryEntry = {
-      id,
-      timestamp: new Date().toISOString(),
-      ...entry
-    };
-
-    this.inMemoryStore.push(memoryEntry);
-
-    // Keep only the most recent entries
-    if (this.inMemoryStore.length > this.maxEntries) {
-      this.inMemoryStore = this.inMemoryStore.slice(-this.maxEntries);
-    }
-
-    return id;
+    // Delegate to vector memory manager
+    return await storeMemoryEntry({
+      type: entry.type,
+      content: entry.content,
+      metadata: entry.metadata
+    });
   }
 
   async retrieve(query: string, limit: number = 5): Promise<MemoryEntry[]> {
-    // Simple text-based search since we don't have vector embeddings
-    const queryLower = query.toLowerCase();
+    // Use vector memory manager for semantic search
+    const results = await retrieveMemoryEntries(query, limit);
     
-    const matches = this.inMemoryStore.filter(entry => 
-      entry.content.toLowerCase().includes(queryLower) ||
-      entry.metadata?.tags?.some((tag: string) => tag.toLowerCase().includes(queryLower))
-    );
-
-    // Sort by timestamp (most recent first)
-    matches.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-    return matches.slice(0, limit);
+    // Convert to MemoryEntry format for backward compatibility
+    return results.map((result: VectorSearchResult) => ({
+      id: result.id,
+      type: result.type,
+      content: result.content,
+      metadata: result.metadata,
+      timestamp: result.metadata.timestamp,
+    }));
   }
 
   async update(id: string, updates: Partial<MemoryEntry>): Promise<boolean> {
-    const index = this.inMemoryStore.findIndex(entry => entry.id === id);
-    if (index === -1) return false;
-
-    this.inMemoryStore[index] = {
-      ...this.inMemoryStore[index],
-      ...updates,
-      id, // Ensure ID doesn't change
-      timestamp: new Date().toISOString() // Update timestamp
-    };
-
-    return true;
+    return await updateMemoryEntry(id, updates);
   }
 
   async delete(id: string): Promise<boolean> {
-    const index = this.inMemoryStore.findIndex(entry => entry.id === id);
-    if (index === -1) return false;
-
-    this.inMemoryStore.splice(index, 1);
-    return true;
+    return await deleteMemoryEntry(id);
   }
 
   async getByType(type: MemoryEntry['type'], limit: number = 10): Promise<MemoryEntry[]> {
-    const matches = this.inMemoryStore.filter(entry => entry.type === type);
+    const results = await getMemoryEntriesByType(type, limit);
     
-    // Sort by timestamp (most recent first)
-    matches.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-    return matches.slice(0, limit);
+    return results.map((result: VectorMemoryEntry) => ({
+      id: result.id,
+      type: result.type,
+      content: result.content,
+      metadata: result.metadata,
+      timestamp: result.metadata.timestamp,
+    }));
   }
 
   async getRecent(limit: number = 10): Promise<MemoryEntry[]> {
-    const sorted = [...this.inMemoryStore].sort(
-      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-    );
-
-    return sorted.slice(0, limit);
+    // Get recent entries by querying with empty string
+    const results = await retrieveMemoryEntries('', limit);
+    
+    return results.map((result: VectorSearchResult) => ({
+      id: result.id,
+      type: result.type,
+      content: result.content,
+      metadata: result.metadata,
+      timestamp: result.metadata.timestamp,
+    }));
   }
 
   async clear(): Promise<void> {
-    this.inMemoryStore = [];
-    console.log('🧹 Memory cleared');
+    await clearMemory();
   }
 
   async getStats(): Promise<{
     totalEntries: number;
     entriesByType: Record<string, number>;
-    oldestEntry?: string;
-    newestEntry?: string;
+    usingPinecone?: boolean;
+    indexName?: string;
   }> {
-    const entriesByType: Record<string, number> = {};
-    
-    this.inMemoryStore.forEach(entry => {
-      entriesByType[entry.type] = (entriesByType[entry.type] || 0) + 1;
-    });
-
-    const timestamps = this.inMemoryStore.map(entry => entry.timestamp).sort();
-
-    return {
-      totalEntries: this.inMemoryStore.length,
-      entriesByType,
-      oldestEntry: timestamps[0],
-      newestEntry: timestamps[timestamps.length - 1]
-    };
+    return await getMemoryStats();
   }
 
   // Helper method to add context about a task
   async addTaskContext(taskId: string, context: string, metadata: any = {}): Promise<string> {
-    return this.store({
-      type: 'task',
-      content: context,
-      metadata: {
-        taskId,
-        ...metadata
-      }
-    });
+    return await vectorAddTaskContext(taskId, context, metadata);
   }
 
   // Helper method to add decision context
   async addDecision(decision: string, reasoning: string, metadata: any = {}): Promise<string> {
-    return this.store({
-      type: 'decision',
-      content: `Decision: ${decision}\nReasoning: ${reasoning}`,
-      metadata
-    });
+    return await vectorAddDecision(decision, reasoning, metadata);
   }
 
   // Helper method to add code context
   async addCodeContext(code: string, description: string, metadata: any = {}): Promise<string> {
-    return this.store({
-      type: 'code',
-      content: `${description}\n\n\`\`\`\n${code}\n\`\`\``,
-      metadata
-    });
+    return await vectorAddCodeContext(code, description, metadata);
   }
 
   // Helper method to add error context
   async addError(error: string, context: string, metadata: any = {}): Promise<string> {
-    return this.store({
-      type: 'error',
-      content: `Error: ${error}\nContext: ${context}`,
-      metadata
-    });
+    return await vectorAddError(error, context, metadata);
   }
 
   // Get context for a specific task
   async getTaskContext(taskId: string): Promise<MemoryEntry[]> {
-    return this.inMemoryStore.filter(entry => 
-      entry.metadata?.taskId === taskId
-    ).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    const results = await vectorGetTaskContext(taskId);
+    
+    return results.map((result: VectorSearchResult) => ({
+      id: result.id,
+      type: result.type,
+      content: result.content,
+      metadata: result.metadata,
+      timestamp: result.metadata.timestamp,
+    }));
   }
 }

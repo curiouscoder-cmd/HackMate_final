@@ -45,7 +45,8 @@ export class TaskRunner {
     try {
       // Use planner to break down the problem
       const planResult: PlannerResult = await planTasks(problem, {
-        apiKey: this.config.enableAI ? process.env.GEMINI_API_KEY : undefined
+        apiKey: this.config.enableAI ? process.env.GEMINI_API_KEY : undefined,
+        memoryManager: this.config.enableMemory ? this.memory : undefined
       });
       
       // Create tasks from the plan

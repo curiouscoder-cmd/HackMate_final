@@ -17,6 +17,7 @@ export interface PlannerResult {
 
 export interface PlannerConfig {
   apiKey?: string;
+  memoryManager?: any; // VectorMemoryManager instance
 }
 
 // Fallback planning function
@@ -70,18 +71,40 @@ const createFallbackPlan = (problem: string): PlannerResult => {
   };
 };
 
-// AI-powered planning function
-const createAIPlan = async (problem: string, apiKey: string): Promise<PlannerResult> => {
+// AI-powered planning function with memory context
+const createAIPlan = async (problem: string, apiKey: string, memoryManager?: any): Promise<PlannerResult> => {
   try {
     // Dynamic import to avoid dependency issues
     const { GoogleGenerativeAI } = await import('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
     
+    // Get relevant context from memory
+    let contextInfo = '';
+    if (memoryManager) {
+      try {
+        const relevantMemories = await memoryManager.getRelevantContext(problem, 5);
+        if (relevantMemories.length > 0) {
+          contextInfo = `
+          
+          RELEVANT CONTEXT FROM PREVIOUS WORK:
+          ${relevantMemories.map((memory: any, index: number) => 
+            `${index + 1}. ${memory.content} (Score: ${memory.score?.toFixed(2)})`
+          ).join('\n')}
+          
+          Use this context to inform your planning decisions and avoid duplicating previous work.
+          `;
+        }
+      } catch (error) {
+        console.warn('Could not retrieve memory context:', error);
+      }
+    }
+    
     const prompt = `
       As a senior software architect, break down this problem into specific, actionable tasks:
       
       Problem: "${problem}"
+      ${contextInfo}
       
       Create a detailed plan with tasks that can be executed by different agents:
       - Planner Agent: Analysis and planning tasks
@@ -105,6 +128,7 @@ const createAIPlan = async (problem: string, apiKey: string): Promise<PlannerRes
       }
       
       Make tasks specific and executable. Focus on practical implementation steps.
+      Consider the context from previous work to make informed decisions.
     `;
 
     const result = await model.generateContent(prompt);
@@ -115,6 +139,24 @@ const createAIPlan = async (problem: string, apiKey: string): Promise<PlannerRes
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
+      
+      // Store the planning decision in memory
+      if (memoryManager) {
+        try {
+          await memoryManager.addDecision(
+            `Created plan for: ${problem}`,
+            `Generated ${parsed.tasks?.length || 0} tasks: ${parsed.summary}`,
+            { 
+              problemType: 'planning',
+              taskCount: parsed.tasks?.length || 0,
+              agents: parsed.tasks?.map((t: any) => t.agent) || []
+            }
+          );
+        } catch (error) {
+          console.warn('Could not store planning decision in memory:', error);
+        }
+      }
+      
       return {
         summary: parsed.summary || 'AI-generated task plan',
         tasks: parsed.tasks || []
@@ -134,7 +176,7 @@ export const planTasks = async (problem: string, config?: PlannerConfig): Promis
     const apiKey = config?.apiKey || process.env.GEMINI_API_KEY;
     
     if (apiKey) {
-      return await createAIPlan(problem, apiKey);
+      return await createAIPlan(problem, apiKey, config?.memoryManager);
     }
     
     return createFallbackPlan(problem);
