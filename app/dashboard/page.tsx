@@ -1,4 +1,4 @@
-import SystemStatus from '@/components/SystemStatus'
+import SystemStatusClient from '@/components/SystemStatusClient'
 import BulkActions from '@/components/BulkActions'
 import Header from '@/components/Header'
 import DashboardStats from '@/components/DashboardStats'
@@ -28,7 +28,7 @@ export default function DashboardPage() {
           
           {/* System Status Section */}
           <div className="mb-8 slide-up stagger-1">
-            <SystemStatus />
+            <SystemStatusClient />
           </div>
           
           {/* Main Dashboard Content - Enhanced Layout */}

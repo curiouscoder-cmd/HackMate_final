@@ -71,7 +71,7 @@ const createAIDebug = async (task: Task, code: string | undefined, apiKey: strin
     // Dynamic import to avoid dependency issues
     const { GoogleGenerativeAI } = await import('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     
     const prompt = `
       As a senior QA engineer and debugger, analyze this task and code:

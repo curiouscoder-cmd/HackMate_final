@@ -77,7 +77,7 @@ const createAIPlan = async (problem: string, apiKey: string, memoryManager?: any
     // Dynamic import to avoid dependency issues
     const { GoogleGenerativeAI } = await import('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     
     // Get relevant context from memory
     let contextInfo = '';
@@ -107,10 +107,10 @@ const createAIPlan = async (problem: string, apiKey: string, memoryManager?: any
       ${contextInfo}
       
       Create a detailed plan with tasks that can be executed by different agents:
-      - Planner Agent: Analysis and planning tasks
-      - Coder Agent: Code generation and implementation
-      - Debugger Agent: Testing and debugging tasks
-      - PM Agent: Communication and project management
+      - planner: Analysis and planning tasks
+      - coder: Code generation and implementation
+      - debugger: Testing and debugging tasks
+      - pm: Communication and project management
       
       Return a JSON response with this structure:
       {

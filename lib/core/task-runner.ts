@@ -4,6 +4,7 @@ import { CodeGenerationResult, executeCoderTask, getCoderStatus } from '../agent
 import { DebugResult, debugTask, runTests, getDebuggerStatus } from '../agents/debugger-agent';
 import { PMUpdate, sendTaskUpdate, sendProjectSummary, getPMStatus } from '../agents/pm-agent';
 import { MemoryManager } from './memory-manager';
+import { sendPlanningComplete, sendTaskUpdate as sendSlackTaskUpdate, sendPRCreated, getSlackStatus } from '../integrations/slack';
 
 export interface TaskRunnerConfig {
   enableAI?: boolean;
@@ -83,6 +84,11 @@ export class TaskRunner {
         });
       }
 
+      // Send Slack notification about planning completion
+      if (this.config.enableSlack) {
+        await sendPlanningComplete(problem, planResult.tasks.length);
+      }
+
       // Start executing tasks
       this.executeTasksAsync(taskIds);
 
@@ -114,6 +120,20 @@ export class TaskRunner {
       task.updatedAt = new Date().toISOString();
       task.logs.push(`Task execution started by ${task.agent} agent`);
       
+      // Send Slack notification
+      console.log('🔍 Task Runner Debug:', {
+        enableSlack: this.config.enableSlack,
+        taskTitle: task.title,
+        slackWebhookUrl: process.env.SLACK_WEBHOOK_URL ? 'set' : 'not set'
+      });
+      
+      if (this.config.enableSlack) {
+        console.log('📢 Calling Slack notification for task start...');
+        await sendSlackTaskUpdate(task.title, 'started', task.description);
+      } else {
+        console.log('❌ Slack disabled in config');
+      }
+      
       await sendTaskUpdate(task, 'started', {
         slackToken: this.config.enableSlack ? process.env.SLACK_BOT_TOKEN : undefined,
         channelId: this.config.enableSlack ? process.env.SLACK_CHANNEL_ID : undefined
@@ -121,22 +141,32 @@ export class TaskRunner {
 
       let result: any;
 
-      // Execute based on agent type
-      switch (task.agent) {
+      // Execute based on agent type (normalize agent names)
+      const agentType = task.agent.toLowerCase().replace(/\s+/g, '').replace('agent', '');
+      switch (agentType) {
         case 'planner':
           result = await this.executePlannerTask(task);
           break;
         case 'coder':
+        case 'coding':
+        case 'developer':
           result = await this.executeCoderTask(task);
           break;
         case 'debugger':
+        case 'debug':
+        case 'tester':
           result = await this.executeDebuggerTask(task);
           break;
         case 'pm':
+        case 'projectmanager':
+        case 'manager':
           result = await this.executePMTask(task);
           break;
         default:
-          throw new Error(`Unknown agent: ${task.agent}`);
+          // Default to coder for unknown agents
+          console.warn(`Unknown agent: ${task.agent}, defaulting to coder`);
+          result = await this.executeCoderTask(task);
+          break;
       }
 
       // Update task with results
@@ -154,6 +184,16 @@ export class TaskRunner {
         });
       }
 
+      // Send Slack notifications
+      if (this.config.enableSlack) {
+        await sendSlackTaskUpdate(task.title, 'completed', `Task completed successfully`);
+        
+        // If it's a coder task with PR, send PR notification
+        if (task.agent === 'coder' && result?.prUrl) {
+          await sendPRCreated(task.title, result.prUrl, result.filename || 'generated-code.js');
+        }
+      }
+
       await sendTaskUpdate(task, 'completed', {
         slackToken: this.config.enableSlack ? process.env.SLACK_BOT_TOKEN : undefined,
         channelId: this.config.enableSlack ? process.env.SLACK_CHANNEL_ID : undefined
@@ -163,6 +203,11 @@ export class TaskRunner {
       task.status = 'failed';
       task.updatedAt = new Date().toISOString();
       task.logs.push(`Task failed: ${(error as Error).message}`);
+
+      // Send Slack failure notification
+      if (this.config.enableSlack) {
+        await sendSlackTaskUpdate(task.title, 'failed', (error as Error).message);
+      }
 
       await sendTaskUpdate(task, 'failed', {
         slackToken: this.config.enableSlack ? process.env.SLACK_BOT_TOKEN : undefined,
@@ -289,6 +334,7 @@ export class TaskRunner {
         slackToken: this.config.enableSlack ? process.env.SLACK_BOT_TOKEN : undefined,
         channelId: this.config.enableSlack ? process.env.SLACK_CHANNEL_ID : undefined
       }),
+      slack: getSlackStatus({ webhookUrl: this.config.enableSlack ? process.env.SLACK_WEBHOOK_URL : undefined }),
       memory: { status: 'ready', type: 'in-memory' },
       taskCount: this.tasks.size,
       config: this.config

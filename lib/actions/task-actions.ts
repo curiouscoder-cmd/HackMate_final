@@ -12,7 +12,7 @@ async function getTaskRunner(): Promise<TaskRunner> {
     taskRunnerInstance = new TaskRunner({
       enableAI: !!process.env.GEMINI_API_KEY,
       enableGitHub: !!process.env.GITHUB_TOKEN,
-      enableSlack: !!process.env.SLACK_BOT_TOKEN,
+      enableSlack: !!process.env.SLACK_WEBHOOK_URL,
       enableMemory: !!process.env.CHROMA_URL
     });
     await taskRunnerInstance.initialize();

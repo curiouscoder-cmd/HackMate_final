@@ -18,16 +18,38 @@ A multi-agent system that acts like a real teammate, automatically planning, cod
 - **Vector Memory**: Semantic search for past decisions and code
 - **Multi-Agent Orchestration**: Intelligent task routing and execution
 
-## 🚀 Quick Start
+## 🚀 Quick Start (MVP Demo Ready)
+
+### 🎯 Hackathon MVP Setup (2 minutes)
+
+For a quick demo-ready setup:
+
+```bash
+# 1. Run the automated setup
+./setup-mvp.sh
+
+# 2. Add your API keys to .env.local:
+#    GEMINI_API_KEY=your_key_here
+#    GITHUB_TOKEN=your_token_here (optional)
+#    SLACK_WEBHOOK_URL=your_webhook_url (optional)
+
+# 3. Start the app
+npm run dev
+
+# 4. Test the autonomous flow
+# Visit http://localhost:3000
+# Enter: "Add a /health endpoint"
+# Watch the magic happen! 🪄
+```
 
 ### Prerequisites
 - Node.js 18+
 - Git
-- Gemini API key (optional, has fallbacks)
+- Gemini API key (required for AI features)
 - GitHub token (optional, for PR creation)
-- Slack bot token (optional, for notifications)
+- Slack webhook URL (optional, for notifications)
 
-### Installation
+### Full Installation
 
 1. **Clone and install dependencies:**
 ```bash
@@ -38,8 +60,8 @@ npm install
 
 2. **Set up environment variables:**
 ```bash
-cp .env.example .env
-# Edit .env with your API keys
+cp .env.example .env.local
+# Edit .env.local with your API keys
 ```
 
 3. **Start the development servers:**

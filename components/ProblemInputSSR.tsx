@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Check, X, Target as TargetIcon, Rocket, Lightbulb } from 'lucide-react'
+import { Check, X, Target as TargetIcon, Rocket, Lightbulb, Loader2, Sparkles } from 'lucide-react'
 import { createTaskAction } from '@/lib/actions/task-actions'
 
 export default function ProblemInputSSR() {
@@ -45,7 +45,7 @@ export default function ProblemInputSSR() {
   ]
 
   return (
-    <div className="card">
+    <div className="card relative">
       <h2 className="text-xl font-semibold text-gray-900 mb-4 inline-flex items-center">
         <TargetIcon className="w-5 h-5 mr-2" /> Problem Statement
       </h2>
@@ -80,7 +80,7 @@ export default function ProblemInputSSR() {
         )}
 
         {success && (
-          <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+          <div className="p-3 bg-green-50 border border-green-200 rounded-md animate-in slide-in-from-top-2 duration-300">
             <div className="flex">
               <div className="flex-shrink-0">
                 <span className="text-green-500"><Check className="w-4 h-4" /></span>
@@ -88,6 +88,20 @@ export default function ProblemInputSSR() {
               <div className="ml-3">
                 <p className="text-sm text-green-700">{success}</p>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Loading overlay when processing */}
+        {isPending && (
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-lg flex items-center justify-center z-10">
+            <div className="text-center">
+              <div className="relative">
+                <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-2" />
+                <Sparkles className="w-4 h-4 text-yellow-500 absolute -top-1 -right-1 animate-pulse" />
+              </div>
+              <p className="text-sm text-gray-600 font-medium">AI is analyzing your problem...</p>
+              <p className="text-xs text-gray-400 mt-1">This may take a few seconds</p>
             </div>
           </div>
         )}

@@ -1,36 +1,95 @@
 'use client'
 
+import { useState, useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
+
 interface Integration {
   name: string
   description: string
   icon: string
-  status: 'connected' | 'disconnected'
+  status: 'connected' | 'disconnected' | 'checking'
   color: string
+  details?: string
 }
 
-const integrations: Integration[] = [
-  {
-    name: 'Gemini AI',
-    description: 'Code generation & analysis',
-    icon: '🤖',
-    status: 'connected',
-    color: 'from-blue-500 to-cyan-500'
-  },
-  {
-    name: 'GitHub',
-    description: 'PR creation & management',
-    icon: '🐙',
-    status: 'disconnected',
-    color: 'from-gray-700 to-gray-900'
-  },
-  {
-    name: 'Slack',
-    description: 'Team notifications',
-    icon: '💬',
-    status: 'disconnected',
-    color: 'from-purple-500 to-pink-500'
-  }
-]
+export default function IntegrationsPanel() {
+  const [integrations, setIntegrations] = useState<Integration[]>([
+    {
+      name: 'Gemini AI',
+      description: 'Code generation & analysis',
+      icon: '🤖',
+      status: 'checking',
+      color: 'from-blue-500 to-cyan-500'
+    },
+    {
+      name: 'GitHub',
+      description: 'PR creation & management',
+      icon: '🐙',
+      status: 'checking',
+      color: 'from-gray-700 to-gray-900'
+    },
+    {
+      name: 'Slack',
+      description: 'Team notifications',
+      icon: '💬',
+      status: 'checking',
+      color: 'from-purple-500 to-pink-500'
+    }
+  ]);
+
+  const checkIntegrations = async () => {
+    try {
+      // Check environment variables and API status
+      const hasGemini = !!process.env.NEXT_PUBLIC_GEMINI_API_KEY || typeof window !== 'undefined';
+      const hasGitHub = typeof window !== 'undefined'; // We'll check via API
+      const hasSlack = typeof window !== 'undefined'; // We'll check via API
+      
+      // For client-side, we'll make API calls to check status
+      const response = await fetch('/api/agents/status');
+      const result = await response.json();
+      
+      setIntegrations(prev => prev.map(integration => {
+        switch (integration.name) {
+          case 'Gemini AI':
+            return {
+              ...integration,
+              status: result.success && result.agents?.config?.enableAI ? 'connected' : 'disconnected',
+              details: result.success && result.agents?.config?.enableAI ? 'API Key configured' : 'API Key missing'
+            };
+          case 'GitHub':
+            return {
+              ...integration,
+              status: result.success && result.agents?.config?.enableGitHub ? 'connected' : 'disconnected',
+              details: result.success && result.agents?.config?.enableGitHub ? 'Token configured' : 'Token missing'
+            };
+          case 'Slack':
+            return {
+              ...integration,
+              status: result.success && result.agents?.config?.enableSlack ? 'connected' : 'disconnected',
+              details: result.success && result.agents?.config?.enableSlack ? 'Webhook configured' : 'Webhook missing'
+            };
+          default:
+            return integration;
+        }
+      }));
+    } catch (error) {
+      console.error('Failed to check integrations:', error);
+      setIntegrations(prev => prev.map(integration => ({
+        ...integration,
+        status: 'disconnected' as const,
+        details: 'Check failed'
+      })));
+    }
+  };
+
+  useEffect(() => {
+    checkIntegrations();
+    
+    // Refresh integration status every 10 seconds
+    const interval = setInterval(checkIntegrations, 10000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
 function IntegrationCard({ integration, index }: { integration: Integration; index: number }) {
   return (
@@ -63,6 +122,13 @@ function IntegrationCard({ integration, index }: { integration: Integration; ind
                 Connected
               </span>
             </>
+          ) : integration.status === 'checking' ? (
+            <>
+              <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
+              <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                Checking...
+              </span>
+            </>
           ) : (
             <>
               <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
@@ -73,11 +139,17 @@ function IntegrationCard({ integration, index }: { integration: Integration; ind
           )}
         </div>
       </div>
+      
+      {/* Connection details */}
+      {integration.details && (
+        <div className="mt-2 text-xs text-gray-400">
+          {integration.details}
+        </div>
+      )}
     </div>
   )
 }
 
-export default function IntegrationsPanel() {
   return (
     <div className="premium-card fade-in stagger-3">
       <div className="flex items-center mb-6">

@@ -148,14 +148,21 @@ ${codeResult.description}
 // AI-powered code generation function
 const createAICode = async (task: Task, config: CoderConfig): Promise<CodeGenerationResult> => {
   try {
+    console.log('🤖 AI Code Generation Starting...', {
+      hasApiKey: !!config.geminiApiKey,
+      taskTitle: task.title,
+      apiKeyPrefix: config.geminiApiKey?.substring(0, 10) + '...'
+    });
+    
     if (!config.geminiApiKey) {
+      console.log('❌ No Gemini API key provided, using fallback');
       return createFallbackCode(task);
     }
 
     // Dynamic import to avoid dependency issues
     const { GoogleGenerativeAI } = await import('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(config.geminiApiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     
     const prompt = `
       As a senior software developer, implement this task:
@@ -170,43 +177,112 @@ const createAICode = async (task: Task, config: CoderConfig): Promise<CodeGenera
       4. Uses TypeScript when applicable
       5. Follows the existing project structure
       
-      Return a JSON response with:
-      {
-        "filename": "suggested_filename.ext",
-        "code": "complete code implementation",
-        "description": "what this code does"
-      }
+      Return your response in this EXACT format with three sections separated by |||:
       
-      Focus on functional programming patterns and modern JavaScript/TypeScript.
+      FILENAME|||your-file-name.js|||
+      DESCRIPTION|||Brief description of what the code does|||
+      CODE|||
+      // Your actual code here
+      // Can be multiple lines
+      // No escaping needed
+      |||END
+      
+      Example:
+      FILENAME|||calculator.js|||
+      DESCRIPTION|||A simple calculator function|||
+      CODE|||
+      function add(a, b) {
+        return a + b;
+      }
+      |||END
     `;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
 
-    // Extract JSON from the response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
+    // Parse the custom format response (no JSON parsing needed!)
+    console.log('🔍 Raw AI Response:', text.substring(0, 200) + '...');
+    
+    let parsed;
+    try {
+      // First try the new simple format
+      const filenameMatch = text.match(/FILENAME\|\|\|(.*?)\|\|\|/);
+      const descMatch = text.match(/DESCRIPTION\|\|\|(.*?)\|\|\|/);
+      const codeMatch = text.match(/CODE\|\|\|([\s\S]*?)\|\|\|END/);
       
-      // Create GitHub PR if configured
-      let prUrl;
-      if (config.githubToken && config.githubOwner && config.githubRepo) {
-        prUrl = await createGitHubPR(parsed, task, config);
+      if (filenameMatch && descMatch && codeMatch) {
+        parsed = {
+          filename: filenameMatch[1].trim(),
+          code: codeMatch[1].trim(),
+          description: descMatch[1].trim()
+        };
+        console.log('✅ Successfully parsed custom format');
+      } else {
+        // Fallback to JSON parsing if AI didn't follow the format
+        console.log('⚠️ Custom format not found, trying JSON...');
+        
+        // Remove markdown blocks
+        let jsonStr = text.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+        const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+        
+        if (jsonMatch) {
+          try {
+            parsed = JSON.parse(jsonMatch[0]);
+            console.log('✅ JSON parsed successfully');
+          } catch (e) {
+            // Last resort: extract fields manually
+            const fnMatch = jsonStr.match(/"filename":\s*"([^"]*?)"/);
+            const descMatch = jsonStr.match(/"description":\s*"([^"]*?)"/);
+            const codeMatch = jsonStr.match(/"code":\s*"([\s\S]*?)"/);
+            
+            if (fnMatch && descMatch && codeMatch) {
+              parsed = {
+                filename: fnMatch[1],
+                code: codeMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"'),
+                description: descMatch[1]
+              };
+              console.log('✅ Manually extracted from JSON');
+            } else {
+              throw new Error('Could not parse response in any format');
+            }
+          }
+        } else {
+          throw new Error('No parseable content found');
+        }
       }
-
-      return {
-        code: parsed.code || '',
-        filename: parsed.filename || 'generated-code.js',
-        description: parsed.description || 'AI-generated code',
-        prUrl
-      };
+    } catch (error) {
+      console.error('Failed to parse AI response:', error);
+      throw error;
+    }
+    
+    // Create GitHub PR if configured
+    let prUrl;
+    if (config.githubToken && config.githubOwner && config.githubRepo) {
+      prUrl = await createGitHubPR(parsed, task, config);
     }
 
-    return createFallbackCode(task);
+    return {
+      code: parsed.code || '',
+      filename: parsed.filename || 'generated-code.js',
+      description: parsed.description || 'AI-generated code',
+      prUrl
+    };
   } catch (error) {
     console.warn('AI code generation failed, using fallback:', (error as Error).message);
-    return createFallbackCode(task);
+    const fallbackResult = createFallbackCode(task);
+    
+    // Create GitHub PR even with fallback code
+    let prUrl: string | undefined;
+    if (config.githubToken && config.githubOwner && config.githubRepo) {
+      console.log('🚀 Creating GitHub PR with fallback code...');
+      prUrl = await createGitHubPR(fallbackResult, task, config);
+    }
+    
+    return {
+      ...fallbackResult,
+      prUrl
+    };
   }
 };
 
